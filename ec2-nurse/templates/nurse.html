@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UMak Clinic — Nurse Station Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="dashboard-wrapper">
+
+    <!-- Top Navigation & Brand Header -->
+    <header class="header-brand">
+      <div class="header-top">
+        <span class="brand-eyebrow">University of Makati — School Health Services</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="clinicBadge" class="badge">
+            <span class="badge-dot"></span>
+            <span id="clinicBadgeText">Clinic Open</span>
+          </div>
+          <a href="/logout" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">
+            Sign Out
+          </a>
+        </div>
+      </div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h1 class="brand-title">Nurse Station Dashboard</h1>
+          <p class="brand-subtitle">Manage today's student queue, call waiting students, and record private clinical notes.</p>
+        </div>
+        <!-- Date Selector -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label class="form-label" for="datePicker" style="margin: 0;">Date:</label>
+          <input type="date" id="datePicker" class="input mono-num" style="padding: 6px 10px; width: auto;" onchange="handleDateChange()">
+          <button type="button" class="btn btn-secondary" style="padding: 6px 12px;" onclick="loadQueue(true)">Refresh</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Alert Box -->
+    <div id="alertBox" class="alert" style="display: none;"></div>
+
+    <!-- Live Counters Row -->
+    <section class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+      <div class="stat-box">
+        <span class="stat-label">Currently Calling</span>
+        <span id="metricServing" class="stat-value mono-num">--</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Waiting Students</span>
+        <span id="metricWaiting" class="stat-value mono-num">0</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Completed Visits</span>
+        <span id="metricDone" class="stat-value mono-num">0</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Total Visits Today</span>
+        <span id="metricTotal" class="stat-value mono-num">0</span>
+      </div>
+    </section>
+
+    <!-- Two-Column Workspace -->
+    <div class="two-column-layout">
+
+      <!-- LEFT COLUMN: Patient in Clinic / Note Editor -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Currently Attending</h2>
+          <span id="attendingBadge" class="badge badge-waiting">
+            <span class="badge-dot"></span>
+            <span id="attendingBadgeText">IDLE</span>
+          </span>
+        </div>
+
+        <!-- Big Call Next Button -->
+        <button type="button" id="callNextBtn" class="btn btn-primary btn-full" style="padding: 14px; font-size: 14px;" onclick="handleCallNext()">
+          Call Next Student
+        </button>
+
+        <!-- Attending Student Details -->
+        <div id="attendingBox" style="background-color: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span id="attendingNumber" class="mono-num" style="font-size: 24px; font-weight: 800;">None</span>
+            <span id="attendingTime" class="mono-num" style="font-size: 11px; color: var(--ink-secondary);">--:--</span>
+          </div>
+          <div>
+            <span class="stat-label" style="display: block; margin-bottom: 2px;">Reported Symptom / Reason:</span>
+            <p id="attendingReason" style="font-size: 14px; color: var(--ink-primary); font-weight: 500;">
+              No student is currently called to the desk.
+            </p>
+          </div>
+        </div>
+
+        <!-- Clinical Visit Note Form -->
+        <form id="noteForm" onsubmit="handleSaveNote(event, false)" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="visitNoteInput">
+              <span>Private Clinical Visit Note</span>
+              <span style="font-weight: 400; color: var(--ink-muted);">Health Data</span>
+            </label>
+            <textarea
+              id="visitNoteInput"
+              class="textarea"
+              rows="4"
+              placeholder="Record vital signs (temp, BP), treatment given, dispensed medicines, or medical advice..."
+              disabled
+            ></textarea>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button type="button" id="saveDoneBtn" class="btn btn-primary btn-full" disabled onclick="handleSaveNote(event, true)">
+              Save Note & Mark Completed (DONE)
+            </button>
+            <button type="submit" id="saveOnlyBtn" class="btn btn-secondary btn-full" disabled>
+              Save Note Only (Keep Serving)
+            </button>
+          </div>
+        </form>
+
+        <div class="privacy-banner" style="font-size: 11px;">
+          <svg class="privacy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span><strong>Confidential Medical Record:</strong> Notes saved here are strictly inaccessible to students and counselors.</span>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Today's Full Queue -->
+      <section class="card">
+        <div class="card-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h2 class="card-title">Queue Roster</h2>
+            <span id="rosterCountBadge" class="badge">0</span>
+          </div>
+
+          <!-- Filter Tabs -->
+          <div class="tag-chips">
+            <span class="tag-chip active" onclick="setFilter('ALL', this)">All</span>
+            <span class="tag-chip" onclick="setFilter('WAITING', this)">Waiting</span>
+            <span class="tag-chip" onclick="setFilter('SERVING', this)">Serving</span>
+            <span class="tag-chip" onclick="setFilter('DONE', this)">Done</span>
+          </div>
+        </div>
+
+        <!-- Table of Students -->
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">Queue #</th>
+                <th style="width: 100px;">Status</th>
+                <th>Reason</th>
+                <th style="width: 130px;">Visit Note</th>
+                <th style="width: 80px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="rosterTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--ink-secondary); padding: 24px;">
+                  Loading queue records...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Footer Meta -->
+    <footer class="meta-footer">
+      University of Makati | Section IV-DCSAD — Group 3 (dcsad-g03)<br>
+      ELEC3 Cloud Computing Track B Final Exam — School Nurse Admin Station
+    </footer>
+
+  </div>
+
+  <script>
+    let queueItems = [];
+    let currentAttending = null;
+    let activeFilter = "ALL";
+
+    function getTodayStringPHT() {
+      const now = new Date();
+      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const phtTime = new Date(utcTime + (3600000 * 8));
+      return phtTime.toISOString().split("T")[0];
+    }
+
+    function showAlert(msg, isError = true) {
+      const box = document.getElementById("alertBox");
+      box.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+      box.textContent = msg;
+      box.style.display = "block";
+      setTimeout(() => { box.style.display = "none"; }, 5000);
+    }
+
+    function formatTime(isoString) {
+      if (!isoString) return "--:--";
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return "--:--";
+      }
+    }
+
+    function setFilter(filter, el) {
+      activeFilter = filter;
+      document.querySelectorAll(".tag-chip").forEach(c => c.classList.remove("active"));
+      el.classList.add("active");
+      renderRoster();
+    }
+
+    function handleDateChange() {
+      loadQueue(true);
+    }
+
+    // Load full queue via /api/queue
+    async function loadQueue(silent = false) {
+      const datePicker = document.getElementById("datePicker");
+      const selectedDate = datePicker.value || getTodayStringPHT();
+
+      try {
+        const res = await fetch(`/api/queue?date=${encodeURIComponent(selectedDate)}`);
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+          showAlert("Failed to load queue from API Gateway.");
+          return;
+        }
+
+        const data = await res.json();
+        queueItems = data.queue || [];
+        const counter = data.counter || {};
+
+        // Update top metrics
+        const currentServing = counter.current_serving || 0;
+        document.getElementById("metricServing").textContent = currentServing > 0 ? `Q-${String(currentServing).padStart(3, '0')}` : "None";
+        document.getElementById("metricTotal").textContent = counter.total_visits || 0;
+
+        const waitingCount = queueItems.filter(i => i.status === "WAITING").length;
+        const doneCount = queueItems.filter(i => i.status === "DONE").length;
+        document.getElementById("metricWaiting").textContent = waitingCount;
+        document.getElementById("metricDone").textContent = doneCount;
+
+        // Auto-select currently SERVING student if available and no one selected
+        const servingStudent = queueItems.find(i => i.status === "SERVING");
+        if (servingStudent) {
+          selectStudent(servingStudent);
+        } else if (currentAttending && currentAttending.status === "DONE") {
+          // Keep current view or clear
+        }
+
+        renderRoster();
+
+      } catch (err) {
+        console.warn("Error fetching queue:", err);
+      }
+    }
+
+    // Render roster table with filtering
+    function renderRoster() {
+      const tbody = document.getElementById("rosterTableBody");
+      let filtered = queueItems;
+
+      if (activeFilter !== "ALL") {
+        filtered = queueItems.filter(i => i.status === activeFilter);
+      }
+
+      document.getElementById("rosterCountBadge").textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--ink-secondary); padding: 24px;">
+              No students found for filter: ${activeFilter}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        let badgeClass = "badge-waiting";
+        if (item.status === "SERVING") badgeClass = "badge-serving";
+        if (item.status === "DONE") badgeClass = "badge-done";
+
+        const hasNote = Boolean(item.visit_note && item.visit_note.trim());
+        const isCurrent = currentAttending && currentAttending.queue_no === item.queue_no;
+
+        return `
+          <tr style="${isCurrent ? 'background-color: #fafafa; font-weight: 500;' : ''}">
+            <td class="mono-num" style="font-weight: 700;">${item.display_no}</td>
+            <td>
+              <span class="badge ${badgeClass}" style="padding: 2px 7px; font-size: 10px;">
+                <span class="badge-dot"></span>
+                <span>${item.status}</span>
+              </span>
+            </td>
+            <td style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.reason}">
+              ${item.reason}
+            </td>
+            <td style="color: var(--ink-secondary); font-size: 11px;">
+              ${hasNote ? '<span style="color: #166534; font-weight: 500;">✓ Saved Note</span>' : '<span style="color: var(--ink-muted);">No note</span>'}
+            </td>
+            <td style="text-align: right;">
+              <button type="button" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick='selectStudent(${JSON.stringify(item)})'>
+                Select
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // Select student into the attending panel
+    function selectStudent(student) {
+      currentAttending = student;
+
+      document.getElementById("attendingNumber").textContent = student.display_no;
+      document.getElementById("attendingTime").textContent = formatTime(student.created_at);
+      document.getElementById("attendingReason").textContent = student.reason || "None specified";
+
+      const badge = document.getElementById("attendingBadge");
+      const badgeText = document.getElementById("attendingBadgeText");
+      badgeText.textContent = student.status;
+
+      badge.className = "badge";
+      if (student.status === "SERVING") badge.classList.add("badge-serving");
+      else if (student.status === "DONE") badge.classList.add("badge-done");
+      else badge.classList.add("badge-waiting");
+
+      const noteInput = document.getElementById("visitNoteInput");
+      noteInput.value = student.visit_note || "";
+      noteInput.disabled = false;
+
+      document.getElementById("saveDoneBtn").disabled = false;
+      document.getElementById("saveOnlyBtn").disabled = false;
+
+      renderRoster();
+    }
+
+    // Advance queue via Call Next
+    async function handleCallNext() {
+      const btn = document.getElementById("callNextBtn");
+      btn.disabled = true;
+      btn.textContent = "Calling...";
+
+      const datePicker = document.getElementById("datePicker");
+      const selectedDate = datePicker.value || getTodayStringPHT();
+
+      try {
+        const res = await fetch("/api/call-next", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: selectedDate })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showAlert(data.error || "Failed to call next student.");
+          return;
+        }
+
+        if (!data.called) {
+          showAlert("No waiting students in the queue for today.", false);
+        } else {
+          showAlert(`Now calling ${data.called.display_no}!`, false);
+          selectStudent(data.called);
+        }
+
+        loadQueue(true);
+
+      } catch (err) {
+        showAlert("Network error calling student.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Call Next Student";
+      }
+    }
+
+    // Save visit note
+    async function handleSaveNote(e, markDone = false) {
+      if (e) e.preventDefault();
+      if (!currentAttending) return;
+
+      const noteText = document.getElementById("visitNoteInput").value.trim();
+      const datePicker = document.getElementById("datePicker");
+      const selectedDate = datePicker.value || getTodayStringPHT();
+
+      const saveDoneBtn = document.getElementById("saveDoneBtn");
+      const saveOnlyBtn = document.getElementById("saveOnlyBtn");
+      saveDoneBtn.disabled = true;
+      saveOnlyBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/note", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: selectedDate,
+            queue_no: currentAttending.queue_no,
+            visit_note: noteText,
+            mark_done: markDone
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showAlert(data.error || "Failed to save visit note.");
+          return;
+        }
+
+        showAlert(markDone ? "Visit completed & note saved." : "Visit note saved successfully.", false);
+        currentAttending = data.item;
+        selectStudent(data.item);
+        loadQueue(true);
+
+      } catch (err) {
+        showAlert("Error saving note.");
+      } finally {
+        saveDoneBtn.disabled = false;
+        saveOnlyBtn.disabled = false;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("datePicker").value = getTodayStringPHT();
+      loadQueue();
+      // Poll every 5s for new waiting students
+      setInterval(() => {
+        loadQueue(false);
+      }, 5000);
+    });
+  </script>
+</body>
+</html>

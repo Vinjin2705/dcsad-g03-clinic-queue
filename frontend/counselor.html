@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UMak Clinic — Guidance Counselor Daily Statistics</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="dashboard-wrapper">
+
+    <!-- Header & Brand -->
+    <header class="header-brand">
+      <div class="header-top">
+        <span class="brand-eyebrow">University of Makati — Student Wellness & Health Center</span>
+        <span class="badge badge-done">
+          <span class="badge-dot"></span>
+          <span>Guidance & Counseling Division</span>
+        </span>
+      </div>
+      <h1 class="brand-title">Clinic Visit Trends & Daily Counts</h1>
+      <p class="brand-subtitle">High-level daily student consultation counts for institutional wellness reporting and health center capacity planning.</p>
+    </header>
+
+    <!-- Strict Health Privacy Guarantee Banner -->
+    <div class="privacy-banner" style="border-left: 3px solid var(--ink-primary);">
+      <svg class="privacy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <path d="M9 12l2 2 4-4"></path>
+      </svg>
+      <div>
+        <strong>Health Data Privacy & HIPAA/DPA Compliance Guard:</strong>
+        This view queries the aggregated daily counter index only. Individual student identities, visit reasons, and clinical consultation notes are strictly inaccessible at the DynamoDB projection level and are never transmitted over the network.
+      </div>
+    </div>
+
+    <!-- Alert Box -->
+    <div id="alertBox" class="alert" style="display: none;"></div>
+
+    <!-- Key Metrics Cards -->
+    <section class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+      <div class="stat-box" style="padding: 16px;">
+        <span class="stat-label">Total All-Time Visits</span>
+        <span id="metricAllTime" class="stat-value mono-num">0</span>
+      </div>
+      <div class="stat-box" style="padding: 16px;">
+        <span class="stat-label">Today's Total Visits</span>
+        <span id="metricToday" class="stat-value mono-num">0</span>
+      </div>
+      <div class="stat-box" style="padding: 16px;">
+        <span class="stat-label">Active School Days</span>
+        <span id="metricDaysCount" class="stat-value mono-num">0</span>
+      </div>
+      <div class="stat-box" style="padding: 16px;">
+        <span class="stat-label">Average Visits / Day</span>
+        <span id="metricAverage" class="stat-value mono-num">0.0</span>
+      </div>
+    </section>
+
+    <!-- Daily Log Table Section -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Daily Visit Log</h2>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" onclick="fetchDailyStats(true)">
+            Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 160px;">Date (PHT)</th>
+              <th style="width: 140px;">Day of Week</th>
+              <th style="width: 140px;">Visits</th>
+              <th>Relative Volume</th>
+            </tr>
+          </thead>
+          <tbody id="statsTableBody">
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--ink-secondary); padding: 24px;">
+                Loading daily clinic visit logs...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer Meta -->
+    <footer class="meta-footer">
+      University of Makati | Section IV-DCSAD — Group 3 (dcsad-g03)<br>
+      ELEC3 Cloud Computing Track B Final Exam — Case 4: School Clinic Visit Queue
+    </footer>
+
+  </div>
+
+  <script>
+    function getTodayStringPHT() {
+      const now = new Date();
+      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const phtTime = new Date(utcTime + (3600000 * 8));
+      return phtTime.toISOString().split("T")[0];
+    }
+
+    function getDayOfWeek(dateStr) {
+      try {
+        const parts = dateStr.split("-");
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        return days[d.getDay()] || "--";
+      } catch (e) {
+        return "--";
+      }
+    }
+
+    function showAlert(msg, isError = true) {
+      const box = document.getElementById("alertBox");
+      box.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+      box.textContent = msg;
+      box.style.display = "block";
+    }
+
+    async function fetchDailyStats(isManual = false) {
+      const tbody = document.getElementById("statsTableBody");
+
+      try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/stats/daily`);
+        if (!response.ok) {
+          showAlert("Failed to retrieve counselor statistics from API Gateway.");
+          return;
+        }
+
+        const data = await response.json();
+        const days = data.days || [];
+        const totalAllTime = data.total_all_time || 0;
+
+        // Metrics calculations
+        const todayStr = getTodayStringPHT();
+        const todayRecord = days.find(d => d.date === todayStr);
+        const todayVisits = todayRecord ? todayRecord.total_visits : 0;
+        const daysCount = days.length;
+        const avgVisits = daysCount > 0 ? (totalAllTime / daysCount).toFixed(1) : "0.0";
+
+        document.getElementById("metricAllTime").textContent = totalAllTime.toLocaleString();
+        document.getElementById("metricToday").textContent = todayVisits.toLocaleString();
+        document.getElementById("metricDaysCount").textContent = daysCount.toLocaleString();
+        document.getElementById("metricAverage").textContent = avgVisits;
+
+        // Render Table Rows
+        if (days.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--ink-secondary); padding: 24px;">
+                No clinic visits recorded yet.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        // Find max visits for relative bar visualization
+        const maxVisits = Math.max(...days.map(d => d.total_visits), 1);
+
+        tbody.innerHTML = days.map(row => {
+          const pct = Math.round((row.total_visits / maxVisits) * 100);
+          const isToday = row.date === todayStr;
+
+          return `
+            <tr style="${isToday ? 'background-color: #fafafa; font-weight: 500;' : ''}">
+              <td class="mono-num">${row.date} ${isToday ? '<span class="badge" style="margin-left: 6px; padding: 1px 6px; font-size: 10px;">TODAY</span>' : ''}</td>
+              <td style="color: var(--ink-secondary);">${getDayOfWeek(row.date)}</td>
+              <td class="mono-num" style="font-weight: 600;">${row.total_visits}</td>
+              <td>
+                <div style="background-color: var(--bg-muted); height: 8px; border-radius: 4px; overflow: hidden; width: 100%; max-width: 240px;">
+                  <div style="background-color: var(--ink-primary); width: ${pct}%; height: 100%; border-radius: 4px;"></div>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+      } catch (err) {
+        showAlert("Network error connecting to API. Verify API Gateway configuration.");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      fetchDailyStats();
+      // Auto-refresh counselor stats every 15 seconds
+      setInterval(() => {
+        fetchDailyStats(false);
+      }, 15000);
+    });
+  </script>
+</body>
+</html>

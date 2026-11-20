@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UMak Clinic Queue — Student Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="mobile-wrapper">
+
+    <!-- Header & Brand -->
+    <header class="header-brand">
+      <div class="header-top">
+        <span class="brand-eyebrow">University of Makati</span>
+        <div id="statusBadge" class="badge">
+          <span class="badge-dot"></span>
+          <span id="statusBadgeText">Checking...</span>
+        </div>
+      </div>
+      <h1 class="brand-title">School Clinic Queue</h1>
+      <p class="brand-subtitle">Get your sequential queue number on your phone instead of waiting at the clinic door.</p>
+    </header>
+
+    <!-- Clinic Hours & Demo Indicator Banner -->
+    <div id="hoursBanner" class="privacy-banner">
+      <svg class="privacy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      <div>
+        <strong>Clinic Hours:</strong> 7:00 AM – 5:00 PM (Mon–Fri, PHT).
+        <div id="demoNote" style="margin-top: 4px; display: none;">
+          <span class="badge badge-demo">DEMO MODE ACTIVE</span> Queue join enabled for live exam presentation.
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertBox" class="alert" style="display: none;"></div>
+
+    <!-- VIEW A: JOIN QUEUE FORM (When no ticket is stored for today) -->
+    <section id="joinView" class="card">
+      <div class="card-header">
+        <h2 class="card-title">Join Today's Queue</h2>
+        <span id="todayDateLabel" class="brand-eyebrow mono-num">----/--/--</span>
+      </div>
+
+      <!-- Current Serving Peek -->
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">Now Serving</span>
+          <span id="peekServing" class="stat-value mono-num">--</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Last Issued</span>
+          <span id="peekLast" class="stat-value mono-num">0</span>
+        </div>
+      </div>
+
+      <form id="joinForm" onsubmit="handleJoinQueue(event)">
+        <div class="form-group">
+          <label class="form-label" for="reasonInput">
+            <span>Reason for Visit</span>
+            <span id="charCount" class="form-counter mono-num">0/200</span>
+          </label>
+
+          <!-- Quick selection chips for fast mobile tapping -->
+          <div class="tag-chips" style="margin-bottom: 8px;">
+            <span class="tag-chip" onclick="selectChip(this, 'Headache')">Headache</span>
+            <span class="tag-chip" onclick="selectChip(this, 'Fever / Chills')">Fever / Chills</span>
+            <span class="tag-chip" onclick="selectChip(this, 'Stomachache')">Stomachache</span>
+            <span class="tag-chip" onclick="selectChip(this, 'Minor Cut / Wound')">Minor Cut / Wound</span>
+            <span class="tag-chip" onclick="selectChip(this, 'Dizziness')">Dizziness</span>
+            <span class="tag-chip" onclick="selectChip(this, 'Dysmenorrhea')">Dysmenorrhea</span>
+            <span class="tag-chip" onclick="selectChip(this, 'Allergy')">Allergy</span>
+          </div>
+
+          <textarea
+            id="reasonInput"
+            class="textarea"
+            maxlength="200"
+            rows="3"
+            placeholder="Describe your symptoms or reason for visiting the clinic..."
+            required
+            oninput="handleReasonInput()"
+          ></textarea>
+        </div>
+
+        <button type="submit" id="joinBtn" class="btn btn-primary btn-full" style="margin-top: 14px;">
+          Join Clinic Queue
+        </button>
+      </form>
+
+      <div class="privacy-banner" style="background-color: var(--bg-card); border-style: dashed;">
+        <svg class="privacy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        <span><strong>Student Privacy Guarantee:</strong> Your visit reason is strictly private between you and the school nurse. Refreshes will preserve your ticket.</span>
+      </div>
+    </section>
+
+    <!-- VIEW B: ACTIVE TICKET TRACKER (When student has joined) -->
+    <section id="ticketView" class="card" style="display: none;">
+      <div class="card-header">
+        <span class="brand-eyebrow">Your Clinic Ticket</span>
+        <span id="ticketStatusBadge" class="badge badge-waiting">
+          <span class="badge-dot"></span>
+          <span id="ticketStatusText">WAITING</span>
+        </span>
+      </div>
+
+      <!-- Ticket Hero -->
+      <div class="ticket-hero">
+        <span class="brand-eyebrow">Queue Number</span>
+        <div id="ticketDisplayNo" class="ticket-number-big mono-num">Q-000</div>
+        <p id="ticketCallNotice" class="ticket-status-label">Please wait near the clinic waiting area.</p>
+      </div>
+
+      <!-- Live Queue Progress -->
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">Now Serving</span>
+          <span id="liveServing" class="stat-value mono-num">--</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Ahead of You</span>
+          <span id="liveAhead" class="stat-value mono-num">0</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="fetchQueueStatus(true)">
+          Refresh Status
+        </button>
+        <button type="button" class="btn btn-danger" onclick="handleLeaveQueue()">
+          Leave Queue
+        </button>
+      </div>
+
+      <div id="visitDoneBox" class="alert alert-success" style="display: none;">
+        <strong>Visit Completed:</strong> The attending nurse has finished your consultation and saved your records. Thank you!
+        <button type="button" class="btn btn-secondary btn-full" style="margin-top: 10px;" onclick="handleLeaveQueue(true)">
+          Get Another Ticket
+        </button>
+      </div>
+    </section>
+
+    <!-- Footer Meta -->
+    <footer class="meta-footer">
+      University of Makati | Section IV-DCSAD — Group 3 (dcsad-g03)<br>
+      ELEC3 Cloud Computing Track B Final Exam
+    </footer>
+
+  </div>
+
+  <script>
+    // State management
+    let currentTicket = null;
+    let pollTimer = null;
+
+    function getTodayStringPHT() {
+      // Calculate today's date in Asia/Manila (UTC+8)
+      const now = new Date();
+      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const phtTime = new Date(utcTime + (3600000 * 8));
+      return phtTime.toISOString().split("T")[0];
+    }
+
+    function getStorageKey() {
+      return `umak_clinic_ticket_${getTodayStringPHT()}`;
+    }
+
+    function showAlert(msg, isError = true) {
+      const box = document.getElementById("alertBox");
+      box.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+      box.textContent = msg;
+      box.style.display = "block";
+    }
+
+    function hideAlert() {
+      document.getElementById("alertBox").style.display = "none";
+    }
+
+    function handleReasonInput() {
+      const input = document.getElementById("reasonInput");
+      const counter = document.getElementById("charCount");
+      counter.textContent = `${input.value.length}/200`;
+    }
+
+    function selectChip(el, text) {
+      const input = document.getElementById("reasonInput");
+      const chips = document.querySelectorAll(".tag-chip");
+      chips.forEach(c => c.classList.remove("active"));
+      el.classList.add("active");
+
+      input.value = text;
+      handleReasonInput();
+      input.focus();
+    }
+
+    // Load saved ticket from localStorage
+    function loadSavedTicket() {
+      const saved = localStorage.getItem(getStorageKey());
+      if (saved) {
+        try {
+          currentTicket = JSON.parse(saved);
+        } catch (e) {
+          currentTicket = null;
+        }
+      } else {
+        currentTicket = null;
+      }
+      renderView();
+    }
+
+    function saveTicket(ticket) {
+      currentTicket = ticket;
+      localStorage.setItem(getStorageKey(), JSON.stringify(ticket));
+      renderView();
+    }
+
+    function renderView() {
+      const joinView = document.getElementById("joinView");
+      const ticketView = document.getElementById("ticketView");
+      document.getElementById("todayDateLabel").textContent = getTodayStringPHT();
+
+      if (currentTicket) {
+        joinView.style.display = "none";
+        ticketView.style.display = "flex";
+
+        document.getElementById("ticketDisplayNo").textContent = currentTicket.display_no || `Q-${currentTicket.queue_no}`;
+        updateTicketUI();
+      } else {
+        ticketView.style.display = "none";
+        joinView.style.display = "flex";
+      }
+    }
+
+    function updateTicketUI(statusData) {
+      if (!currentTicket) return;
+
+      const badge = document.getElementById("ticketStatusBadge");
+      const badgeText = document.getElementById("ticketStatusText");
+      const notice = document.getElementById("ticketCallNotice");
+      const doneBox = document.getElementById("visitDoneBox");
+
+      const status = currentTicket.status || "WAITING";
+      badgeText.textContent = status;
+
+      badge.className = "badge";
+      if (status === "SERVING") {
+        badge.classList.add("badge-serving");
+        notice.textContent = "NOW CALLING! Please proceed inside the clinic room immediately.";
+        notice.style.fontWeight = "600";
+        notice.style.color = "var(--ink-primary)";
+      } else if (status === "DONE") {
+        badge.classList.add("badge-done");
+        notice.textContent = "Your clinic visit has been completed.";
+        doneBox.style.display = "block";
+      } else {
+        badge.classList.add("badge-waiting");
+        notice.textContent = "Please wait near the clinic waiting area.";
+        doneBox.style.display = "none";
+      }
+
+      if (statusData) {
+        const currentServing = statusData.current_serving || 0;
+        document.getElementById("liveServing").textContent = statusData.current_serving_display || "None";
+
+        if (status === "DONE") {
+          document.getElementById("liveAhead").textContent = "0";
+        } else if (status === "SERVING") {
+          document.getElementById("liveAhead").textContent = "Now";
+        } else {
+          const ahead = Math.max(0, currentTicket.queue_no - currentServing - 1);
+          document.getElementById("liveAhead").textContent = `${ahead}`;
+        }
+      }
+    }
+
+    // Join Queue handler
+    async function handleJoinQueue(e) {
+      e.preventDefault();
+      hideAlert();
+
+      const reason = document.getElementById("reasonInput").value.trim();
+      if (!reason) {
+        showAlert("Please enter your reason for visiting the clinic.");
+        return;
+      }
+
+      const btn = document.getElementById("joinBtn");
+      btn.disabled = true;
+      btn.textContent = "Joining Queue...";
+
+      try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/queue`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: reason })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          showAlert(data.error || "Failed to join queue. Clinic may be closed.");
+          return;
+        }
+
+        // Save ticket
+        saveTicket({
+          date: data.date,
+          queue_no: data.queue_no,
+          display_no: data.display_no,
+          status: data.status || "WAITING",
+          created_at: new Date().toISOString()
+        });
+
+        fetchQueueStatus(true);
+
+      } catch (err) {
+        showAlert("Network connection error. Check if API Gateway / local server is running.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Join Clinic Queue";
+      }
+    }
+
+    // Leave Queue / Clear Ticket
+    function handleLeaveQueue(silent = false) {
+      if (!silent) {
+        if (!confirm("Are you sure you want to leave the queue or clear your ticket?")) {
+          return;
+        }
+      }
+      localStorage.removeItem(getStorageKey());
+      currentTicket = null;
+      document.getElementById("reasonInput").value = "";
+      handleReasonInput();
+      renderView();
+      fetchQueueStatus(true);
+    }
+
+    // Fetch live status from GET /queue/status
+    async function fetchQueueStatus(showManualFeedback = false) {
+      try {
+        const res = await fetch(`${CONFIG.API_BASE_URL}/queue/status`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        // Update clinic badge & demo indicator
+        const statusBadge = document.getElementById("statusBadge");
+        const statusBadgeText = document.getElementById("statusBadgeText");
+        const demoNote = document.getElementById("demoNote");
+
+        if (data.clinic_open) {
+          statusBadge.className = "badge badge-serving";
+          statusBadgeText.textContent = "Clinic Open";
+        } else {
+          statusBadge.className = "badge badge-done";
+          statusBadgeText.textContent = "Clinic Closed";
+        }
+
+        if (data.demo_mode) {
+          demoNote.style.display = "block";
+        } else {
+          demoNote.style.display = "none";
+        }
+
+        // Update peek numbers on join form
+        document.getElementById("peekServing").textContent = data.current_serving_display || "None";
+        document.getElementById("peekLast").textContent = data.last_number || 0;
+
+        // If student has a ticket, check if its status changed
+        if (currentTicket) {
+          if (currentTicket.queue_no === data.current_serving && currentTicket.status === "WAITING") {
+            currentTicket.status = "SERVING";
+            saveTicket(currentTicket);
+          }
+          updateTicketUI(data);
+        }
+
+        if (showManualFeedback) {
+          // Subtle feedback
+        }
+
+      } catch (err) {
+        console.warn("Unable to fetch queue status:", err);
+      }
+    }
+
+    // Init on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      loadSavedTicket();
+      fetchQueueStatus(true);
+
+      // Start live polling every 4s
+      pollTimer = setInterval(() => {
+        fetchQueueStatus(false);
+      }, CONFIG.POLL_INTERVAL_MS || 4000);
+    });
+  </script>
+</body>
+</html>
