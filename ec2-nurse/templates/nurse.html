@@ -16,7 +16,7 @@
         <div style="display: flex; align-items: center; gap: 12px;">
           <div id="clinicBadge" class="badge">
             <span class="badge-dot"></span>
-            <span id="clinicBadgeText">Clinic Open</span>
+            <span id="clinicBadgeText">Checking...</span>
           </div>
           <a href="/logout" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">
             Sign Out
@@ -169,12 +169,6 @@
 
     </div>
 
-    <!-- Footer Meta -->
-    <footer class="meta-footer">
-      University of Makati | Section IV-DCSAD — Group 3 (dcsad-g03)<br>
-      ELEC3 Cloud Computing Track B Final Exam — School Nurse Admin Station
-    </footer>
-
   </div>
 
   <script>
@@ -294,8 +288,8 @@
         const isCurrent = currentAttending && currentAttending.queue_no === item.queue_no;
 
         return `
-          <tr style="${isCurrent ? 'background-color: #fafafa; font-weight: 500;' : ''}">
-            <td class="mono-num" style="font-weight: 700;">${item.display_no}</td>
+          <tr style="${isCurrent ? 'background-color: var(--row-highlight); font-weight: 600;' : ''}">
+            <td class="mono-num" style="font-weight: 700; color: var(--primary);">${item.display_no}</td>
             <td>
               <span class="badge ${badgeClass}" style="padding: 2px 7px; font-size: 10px;">
                 <span class="badge-dot"></span>
@@ -306,10 +300,10 @@
               ${item.reason}
             </td>
             <td style="color: var(--ink-secondary); font-size: 11px;">
-              ${hasNote ? '<span style="color: #166534; font-weight: 500;">✓ Saved Note</span>' : '<span style="color: var(--ink-muted);">No note</span>'}
+              ${hasNote ? '<span style="color: var(--status-emerald); font-weight: 600;">✓ Saved Note</span>' : '<span style="color: var(--ink-muted);">No note</span>'}
             </td>
             <td style="text-align: right;">
-              <button type="button" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick='selectStudent(${JSON.stringify(item)})'>
+              <button type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick='selectStudent(${JSON.stringify(item)})'>
                 Select
               </button>
             </td>
@@ -429,12 +423,36 @@
       }
     }
 
+    async function updateClinicStatus() {
+      try {
+        const res = await fetch("/api/status");
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById("clinicBadge");
+        const badgeText = document.getElementById("clinicBadgeText");
+        if (data.clinic_open) {
+          badge.className = "badge badge-serving";
+          badgeText.textContent = "Clinic Open";
+        } else if (data.demo_mode) {
+          badge.className = "badge badge-demo";
+          badgeText.textContent = "Closed • Demo Mode";
+        } else {
+          badge.className = "badge badge-done";
+          badgeText.textContent = "Clinic Closed";
+        }
+      } catch (err) {
+        console.warn("Could not check clinic status", err);
+      }
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("datePicker").value = getTodayStringPHT();
+      updateClinicStatus();
       loadQueue();
       // Poll every 5s for new waiting students
       setInterval(() => {
         loadQueue(false);
+        updateClinicStatus();
       }, 5000);
     });
   </script>

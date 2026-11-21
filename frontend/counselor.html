@@ -90,12 +90,6 @@
       </div>
     </section>
 
-    <!-- Footer Meta -->
-    <footer class="meta-footer">
-      University of Makati | Section IV-DCSAD — Group 3 (dcsad-g03)<br>
-      ELEC3 Cloud Computing Track B Final Exam — Case 4: School Clinic Visit Queue
-    </footer>
-
   </div>
 
   <script>
@@ -170,13 +164,13 @@
           const isToday = row.date === todayStr;
 
           return `
-            <tr style="${isToday ? 'background-color: #fafafa; font-weight: 500;' : ''}">
-              <td class="mono-num">${row.date} ${isToday ? '<span class="badge" style="margin-left: 6px; padding: 1px 6px; font-size: 10px;">TODAY</span>' : ''}</td>
+            <tr style="${isToday ? 'background-color: var(--row-highlight); font-weight: 600;' : ''}">
+              <td class="mono-num">${row.date} ${isToday ? '<span class="badge badge-waiting" style="margin-left: 6px; padding: 1px 6px; font-size: 10px;">TODAY</span>' : ''}</td>
               <td style="color: var(--ink-secondary);">${getDayOfWeek(row.date)}</td>
-              <td class="mono-num" style="font-weight: 600;">${row.total_visits}</td>
+              <td class="mono-num" style="font-weight: 700; color: var(--primary);">${row.total_visits}</td>
               <td>
                 <div style="background-color: var(--bg-muted); height: 8px; border-radius: 4px; overflow: hidden; width: 100%; max-width: 240px;">
-                  <div style="background-color: var(--ink-primary); width: ${pct}%; height: 100%; border-radius: 4px;"></div>
+                  <div style="background-color: var(--primary); width: ${pct}%; height: 100%; border-radius: 4px;"></div>
                 </div>
               </td>
             </tr>

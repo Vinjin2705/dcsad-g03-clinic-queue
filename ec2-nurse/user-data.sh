@@ -18,17 +18,16 @@ echo "=== Starting UMak ELEC3 dcsad-g03 Nurse Station Setup ==="
 date
 
 # ------------------------------------------------------------------------------
-# 1. Update system packages and install prerequisites
+# 1. Install prerequisites (fast boot - skip full OS update)
 # ------------------------------------------------------------------------------
-dnf update -y
 dnf install -y python3 python3-pip git
 
 # ------------------------------------------------------------------------------
 # 2. Clone Group 3 GitHub Repository
-# Replace <REPO_URL> with Group 3's public or access-token enabled repository
+# Replace REPO_URL with Vinjin2705's public repository
 # ------------------------------------------------------------------------------
 APP_DIR="/opt/dcsad-g03-clinic-queue"
-REPO_URL="https://github.com/dcsad-g03/dcsad-g03-clinic-queue.git"
+REPO_URL="https://github.com/Vinjin2705/dcsad-g03-clinic-queue.git"
 
 if [ -d "$APP_DIR" ]; then
     echo "Directory $APP_DIR exists. Pulling latest code..."

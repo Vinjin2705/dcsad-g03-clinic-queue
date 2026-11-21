@@ -57,3 +57,7 @@ Before 7:20 PM PHT, open these 5 browser tabs in your presentation window:
 ### Question 4: "Why did you use a single DynamoDB table instead of multiple tables for counters and visits?"
 **Answer:**
 > "A single-table design (`PK: DATE#YYYY-MM-DD`, `SK: COUNTER` or `QUEUE#xxxx`) allows us to fetch all relevant records for a given school day in a single efficient `Query` operation. It also fits within the strict Free Tier and minimizes AWS resource provisioning overhead in our class lab account."
+
+### Question 5: "Why does your Lambda IAM policy include `dynamodb:Scan` for the Guidance Counselor view?"
+**Answer:**
+> "For the Guidance Counselor portal, `handle_get_daily_stats()` runs a `table.scan()` with a `FilterExpression` on `SK = 'COUNTER'` and a `ProjectionExpression` on `date, total_visits`. This strictly isolates health data: student reasons and nurse visit notes never leave DynamoDB. At our expected school clinic traffic of 120 visits/day (one counter item per school day, ~200 items/year), a Filtered Scan consumes less than 1 Read Capacity Unit (RCU) and completes in under 10 milliseconds. At 10× university-wide scale over decades, we would add a Global Secondary Index (GSI) with Partition Key `SK` so counselors can perform an indexed `Query` instead of a `Scan`."

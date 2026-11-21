@@ -72,6 +72,14 @@ def nurse_dashboard():
     return render_template("nurse.html")
 
 
+def safe_json(resp):
+    """Safely decode JSON from upstream API Gateway, falling back to raw text on error."""
+    try:
+        return resp.json()
+    except (ValueError, requests.exceptions.JSONDecodeError):
+        return {"error": resp.text or f"Upstream HTTP {resp.status_code}"}
+
+
 # ==============================================================================
 # SECURE SERVER-SIDE PROXY ROUTES
 # The Nurse's browser calls these endpoints. Flask validates the session cookie
@@ -95,7 +103,7 @@ def proxy_get_queue():
             headers={"x-nurse-key": NURSE_API_KEY},
             timeout=8
         )
-        return jsonify(resp.json()), resp.status_code
+        return jsonify(safe_json(resp)), resp.status_code
     except requests.RequestException as e:
         return jsonify({"error": f"Failed to connect to API Gateway: {str(e)}"}), 502
 
@@ -118,7 +126,7 @@ def proxy_call_next():
             },
             timeout=8
         )
-        return jsonify(resp.json()), resp.status_code
+        return jsonify(safe_json(resp)), resp.status_code
     except requests.RequestException as e:
         return jsonify({"error": f"Failed to connect to API Gateway: {str(e)}"}), 502
 
@@ -141,7 +149,7 @@ def proxy_save_note():
             },
             timeout=8
         )
-        return jsonify(resp.json()), resp.status_code
+        return jsonify(safe_json(resp)), resp.status_code
     except requests.RequestException as e:
         return jsonify({"error": f"Failed to connect to API Gateway: {str(e)}"}), 502
 
@@ -154,7 +162,7 @@ def proxy_get_status():
     target_url = f"{API_BASE_URL}/queue/status"
     try:
         resp = requests.get(target_url, timeout=8)
-        return jsonify(resp.json()), resp.status_code
+        return jsonify(safe_json(resp)), resp.status_code
     except requests.RequestException as e:
         return jsonify({"error": f"Failed to connect to API Gateway: {str(e)}"}), 502
 

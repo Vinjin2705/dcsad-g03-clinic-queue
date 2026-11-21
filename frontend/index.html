@@ -148,12 +148,6 @@
       </div>
     </section>
 
-    <!-- Footer Meta -->
-    <footer class="meta-footer">
-      University of Makati | Section IV-DCSAD — Group 3 (dcsad-g03)<br>
-      ELEC3 Cloud Computing Track B Final Exam
-    </footer>
-
   </div>
 
   <script>
@@ -371,6 +365,35 @@
           demoNote.style.display = "none";
         }
 
+        // Lock or unlock join form based on operating hours and demo mode
+        const joinBtn = document.getElementById("joinBtn");
+        const reasonInput = document.getElementById("reasonInput");
+        const isClosed = !data.clinic_open && !data.demo_mode;
+
+        if (isClosed) {
+          if (joinBtn) {
+            joinBtn.disabled = true;
+            joinBtn.textContent = "Clinic is Closed (Mon–Fri 7:00 AM – 5:00 PM)";
+            joinBtn.style.opacity = "0.6";
+            joinBtn.style.cursor = "not-allowed";
+          }
+          if (reasonInput) {
+            reasonInput.disabled = true;
+            reasonInput.placeholder = "Clinic is currently closed outside operating hours (Mon–Fri 7:00 AM – 5:00 PM PHT).";
+          }
+        } else {
+          if (joinBtn && joinBtn.disabled && joinBtn.textContent.startsWith("Clinic is Closed")) {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Join Clinic Queue";
+            joinBtn.style.opacity = "";
+            joinBtn.style.cursor = "";
+          }
+          if (reasonInput && reasonInput.disabled) {
+            reasonInput.disabled = false;
+            reasonInput.placeholder = "Describe your symptoms or reason for visiting the clinic...";
+          }
+        }
+
         // Update peek numbers on join form
         document.getElementById("peekServing").textContent = data.current_serving_display || "None";
         document.getElementById("peekLast").textContent = data.last_number || 0;
@@ -379,6 +402,9 @@
         if (currentTicket) {
           if (currentTicket.queue_no === data.current_serving && currentTicket.status === "WAITING") {
             currentTicket.status = "SERVING";
+            saveTicket(currentTicket);
+          } else if (data.current_serving > currentTicket.queue_no && currentTicket.status !== "DONE") {
+            currentTicket.status = "DONE";
             saveTicket(currentTicket);
           }
           updateTicketUI(data);

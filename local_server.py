@@ -327,6 +327,32 @@ class LocalDevHandler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         raw_path = parsed_url.path
 
+        # Check if this is a demo mode toggle route
+        if raw_path in ("/demo/on", "/demo/off", "/demo/toggle", "/demo/status"):
+            if raw_path == "/demo/on":
+                os.environ["DEMO_MODE"] = "true"
+            elif raw_path == "/demo/off":
+                os.environ["DEMO_MODE"] = "false"
+            elif raw_path == "/demo/toggle":
+                curr = os.environ.get("DEMO_MODE", "true").lower() in ("true", "1", "yes")
+                os.environ["DEMO_MODE"] = "false" if curr else "true"
+
+            curr_state = os.environ.get("DEMO_MODE", "true").lower() in ("true", "1", "yes")
+            is_open = lambda_function.is_clinic_open_pht()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            resp_body = {
+                "demo_mode": curr_state,
+                "clinic_open": is_open,
+                "can_join_queue": is_open or curr_state,
+                "message": f"DEMO_MODE is now {'ENABLED (Queue override active)' if curr_state else 'OFF (Strict hours 7:00 AM - 5:00 PM Mon-Fri)'}"
+            }
+            self.wfile.write(json.dumps(resp_body, indent=2).encode("utf-8"))
+            return
+
         # Check if this is an API route
         if raw_path.startswith(("/queue", "/stats", "/nurse")):
             self._handle_api_request("GET")
@@ -348,6 +374,9 @@ class LocalDevHandler(BaseHTTPRequestHandler):
 def run_local_server(port=8000):
     server_address = ("0.0.0.0", port)
     httpd = ThreadedHTTPServer(server_address, LocalDevHandler)
+    demo_active = os.environ.get("DEMO_MODE", "true").lower() in ("true", "1", "yes")
+    is_open = lambda_function.is_clinic_open_pht()
+
     print("=" * 70)
     print("UMak ELEC3 (Track B) — Case 4: School Clinic Visit Queue")
     print(f"Local Server running at: http://localhost:{port}/")
@@ -355,6 +384,10 @@ def run_local_server(port=8000):
     print(f"- Counselor Portal:      http://localhost:{port}/counselor.html")
     print(f"- API Endpoint Base:     http://localhost:{port}")
     print(f"- DynamoDB Mock:         Active (In-Memory)")
+    print(f"- Clinic Operating Hours: 7:00 AM – 5:00 PM (Mon–Fri PHT)")
+    print(f"- Clinic Currently:      {'OPEN' if is_open else 'CLOSED (Outside hours/weekend)'}")
+    print(f"- DEMO_MODE:             {'ACTIVE (Allows queue joins for defense)' if demo_active else 'OFF (Strict 7am-5pm Mon-Fri enforced)'}")
+    print(f"- Toggle Demo via API:   http://localhost:{port}/demo/toggle")
     print("=" * 70)
     print("Press Ctrl+C to stop.")
     try:
@@ -366,9 +399,11 @@ def run_local_server(port=8000):
 
 if __name__ == "__main__":
     port = 8000
-    if len(sys.argv) > 1:
-        try:
-            port = int(sys.argv[1])
-        except ValueError:
-            pass
+    for arg in sys.argv[1:]:
+        if arg in ("--no-demo", "--strict", "--closed"):
+            os.environ["DEMO_MODE"] = "false"
+        elif arg in ("--demo", "--allow-demo"):
+            os.environ["DEMO_MODE"] = "true"
+        elif arg.isdigit():
+            port = int(arg)
     run_local_server(port)
