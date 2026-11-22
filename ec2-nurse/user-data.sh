@@ -24,7 +24,6 @@ dnf install -y python3 python3-pip git
 
 # ------------------------------------------------------------------------------
 # 2. Clone Group 3 GitHub Repository
-# Replace REPO_URL with Vinjin2705's public repository
 # ------------------------------------------------------------------------------
 APP_DIR="/opt/dcsad-g03-clinic-queue"
 REPO_URL="https://github.com/Vinjin2705/dcsad-g03-clinic-queue.git"
@@ -53,11 +52,10 @@ pip install -r requirements.txt
 
 # ------------------------------------------------------------------------------
 # 4. Configure Application Environment (.env)
-# Replace placeholder values with Group 3 AWS deployment configurations:
 # ------------------------------------------------------------------------------
 cat << 'EOF' > "$APP_DIR/ec2-nurse/.env"
 # API Gateway HTTP API Endpoint (umak-elec3-dcsad-g03-api)
-API_BASE_URL=https://your-api-gateway-id.execute-api.ap-southeast-1.amazonaws.com
+API_BASE_URL=https://x9mmdpwelc.execute-api.ap-southeast-1.amazonaws.com
 
 # Nurse authentication secrets
 NURSE_API_KEY=dcsad-g03-nurse-secret-2026
