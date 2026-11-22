@@ -11,7 +11,8 @@
 
 const CONFIG = {
   // Local development default:
-  API_BASE_URL: "http://localhost:8000",
+  API_BASE_URL: "https://x9mmdpwelc.execute-api.ap-southeast-1.amazonaws.com
+",
 
   // Class AWS Lab Account deployment endpoint placeholder:
   // API_BASE_URL: "https://your-api-id.execute-api.ap-southeast-1.amazonaws.com",
